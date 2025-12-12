@@ -67,26 +67,29 @@
         
         // Wait for FFmpeg library to load
         const checkFFmpegLoaded = () => {
+            console.log('Checking... createFFmpeg:', typeof createFFmpeg, 'ffmpegLoaded flag:', window.ffmpegLoaded);
+            
             if (window.ffmpegError) {
                 showError(window.ffmpegError);
                 return;
             }
             
             if (typeof createFFmpeg !== 'undefined') {
-                console.log('createFFmpeg function: available');
+                console.log('✅ createFFmpeg function found!');
                 loadFFmpeg();
             } else if (window.ffmpegLoaded) {
-                // Library loaded but createFFmpeg not available yet
+                // Library claims to be loaded but createFFmpeg not available yet
+                console.log('Library loaded but createFFmpeg not ready, retrying...');
                 setTimeout(checkFFmpegLoaded, 100);
             } else {
                 // Still loading
-                console.log('Waiting for FFmpeg library to load...');
+                console.log('Still waiting for FFmpeg library...');
                 setTimeout(checkFFmpegLoaded, 200);
             }
         };
         
         // Start checking after a short delay
-        setTimeout(checkFFmpegLoaded, 300);
+        setTimeout(checkFFmpegLoaded, 500);
     }
 
     /**
