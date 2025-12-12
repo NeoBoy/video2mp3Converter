@@ -57,23 +57,35 @@ class VideoToMP3Converter {
                 V2MP3_VERSION
             );
             
-            // Enqueue ffmpeg.wasm from CDN (0.10.1 - no SharedArrayBuffer needed)
-            wp_enqueue_script(
-                'ffmpeg-core',
-                'https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js',
-                array(),
-                '0.10.1',
-                true
-            );
+            // Load FFmpeg ES modules first
+            add_action('wp_footer', function() {
+                ?>
+                <script type="module">
+                    import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+                    import { toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+                    
+                    // Make available globally for converter.js
+                    window.FFmpegModule = { FFmpeg, toBlobURL };
+                </script>
+                <?php
+            }, 5);
             
-            // Enqueue main JavaScript
+            // Enqueue main JavaScript as module
             wp_enqueue_script(
                 'v2mp3-script',
                 V2MP3_PLUGIN_URL . 'assets/js/converter.js',
-                array('ffmpeg-core'),
+                array(),
                 V2MP3_VERSION,
                 true
             );
+            
+            // Add module type attribute
+            add_filter('script_loader_tag', function($tag, $handle) {
+                if ('v2mp3-script' === $handle) {
+                    $tag = str_replace(' src', ' type="module" src', $tag);
+                }
+                return $tag;
+            }, 10, 2);
             
             // Pass data to JavaScript
             wp_localize_script('v2mp3-script', 'v2mp3Data', array(

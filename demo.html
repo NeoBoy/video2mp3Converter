@@ -148,21 +148,18 @@
         </div>
     </div>
 
-    <!-- Load FFmpeg from CDN - using 0.10.0 which doesn't require SharedArrayBuffer -->
-    <script>
-        // Try loading FFmpeg from CDN
-        window.ffmpegLoaded = false;
-        window.ffmpegError = null;
+    <!-- Load FFmpeg.wasm from CDN (latest stable version) -->
+    <script type="module">
+        import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
+        import { toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
+        
+        // Make FFmpeg available globally for the converter
+        window.FFmpegModule = { FFmpeg, toBlobURL };
+        window.ffmpegLoaded = true;
+        console.log('✅ FFmpeg ES modules loaded');
     </script>
     
-    <!-- Use version 0.10.0 - last version without SharedArrayBuffer requirement -->
-    <script 
-        src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"
-        onload="window.ffmpegLoaded = true; console.log('✅ FFmpeg 0.10.1 loaded from unpkg CDN');"
-        onerror="console.error('❌ Failed to load FFmpeg from CDN'); window.ffmpegError = 'Failed to load FFmpeg library.';">
-    </script>
-    
-    <!-- Load converter script -->
-    <script src="assets/js/converter.js"></script>
+    <!-- Load converter script as module -->
+    <script type="module" src="assets/js/converter.js"></script>
 </body>
 </html>

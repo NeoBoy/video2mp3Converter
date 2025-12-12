@@ -3,159 +3,129 @@
  * Uses ffmpeg.wasm for client-side video processing
  */
 
-(function() {
-    'use strict';
+// State
+let ffmpeg = null;
+let isFFmpegLoaded = false;
+let currentVideoBlob = null;
+let currentFileName = 'audio';
 
-    // State
-    let ffmpeg = null;
-    let isFFmpegLoaded = false;
-    let currentVideoBlob = null;
-    let currentFileName = 'audio';
+// DOM Elements
+const elements = {
+    videoUrl: null,
+    videoFile: null,
+    convertBtn: null,
+    downloadBtn: null,
+    convertAnotherBtn: null,
+    uploadArea: null,
+    errorMessage: null,
+    progressSection: null,
+    resultSection: null,
+    uploadSection: null,
+    progressStatus: null,
+    progressPercent: null,
+    progressFill: null,
+    progressDetails: null
+};
 
-    // DOM Elements
-    const elements = {
-        videoUrl: null,
-        videoFile: null,
-        convertBtn: null,
-        downloadBtn: null,
-        convertAnotherBtn: null,
-        uploadArea: null,
-        errorMessage: null,
-        progressSection: null,
-        resultSection: null,
-        uploadSection: null,
-        progressStatus: null,
-        progressPercent: null,
-        progressFill: null,
-        progressDetails: null
-    };
+/**
+ * Initialize the converter
+ */
+function init() {
+    // Get DOM elements
+    elements.videoUrl = document.getElementById('videoUrl');
+    elements.videoFile = document.getElementById('videoFile');
+    elements.convertBtn = document.getElementById('convertBtn');
+    elements.downloadBtn = document.getElementById('downloadBtn');
+    elements.convertAnotherBtn = document.getElementById('convertAnotherBtn');
+    elements.uploadArea = document.getElementById('uploadArea');
+    elements.errorMessage = document.getElementById('errorMessage');
+    elements.progressSection = document.getElementById('progressSection');
+    elements.resultSection = document.getElementById('resultSection');
+    elements.uploadSection = document.getElementById('uploadSection');
+    elements.progressStatus = document.getElementById('progressStatus');
+    elements.progressPercent = document.getElementById('progressPercent');
+    elements.progressFill = document.getElementById('progressFill');
+    elements.progressDetails = document.getElementById('progressDetails');
 
-    /**
-     * Initialize the converter
-     */
-    function init() {
-        // Get DOM elements
-        elements.videoUrl = document.getElementById('videoUrl');
-        elements.videoFile = document.getElementById('videoFile');
-        elements.convertBtn = document.getElementById('convertBtn');
-        elements.downloadBtn = document.getElementById('downloadBtn');
-        elements.convertAnotherBtn = document.getElementById('convertAnotherBtn');
-        elements.uploadArea = document.getElementById('uploadArea');
-        elements.errorMessage = document.getElementById('errorMessage');
-        elements.progressSection = document.getElementById('progressSection');
-        elements.resultSection = document.getElementById('resultSection');
-        elements.uploadSection = document.getElementById('uploadSection');
-        elements.progressStatus = document.getElementById('progressStatus');
-        elements.progressPercent = document.getElementById('progressPercent');
-        elements.progressFill = document.getElementById('progressFill');
-        elements.progressDetails = document.getElementById('progressDetails');
-
-        // Check if elements exist
-        if (!elements.convertBtn) {
-            console.error('Converter elements not found');
-            return;
-        }
-
-        // Show upload section
-        elements.uploadSection.style.display = 'block';
-
-        // Bind event listeners
-        bindEvents();
-
-        // Check FFmpeg library availability
-        console.log('Checking FFmpeg availability...');
-        console.log('Window FFmpeg-related keys:', Object.keys(window).filter(k => k.toLowerCase().includes('ffmpeg') || k.toLowerCase().includes('fetch')));
-        console.log('Direct check - createFFmpeg:', typeof createFFmpeg);
-        console.log('Direct check - fetchFile:', typeof fetchFile);
-        console.log('Direct check - FFmpeg:', typeof FFmpeg);
-        
-        // The library might export under FFmpeg namespace
-        if (typeof FFmpeg !== 'undefined') {
-            console.log('FFmpeg object found! Properties:', Object.keys(FFmpeg));
-            if (FFmpeg.createFFmpeg) {
-                console.log('✅ Found FFmpeg.createFFmpeg - using namespaced version');
-                window.createFFmpeg = FFmpeg.createFFmpeg;
-                window.fetchFile = FFmpeg.fetchFile;
-            }
-        }
-        
-        // Now check if functions are available
-        if (typeof createFFmpeg !== 'undefined' && typeof fetchFile !== 'undefined') {
-            console.log('✅ FFmpeg functions ready immediately!');
-            loadFFmpeg();
-        } else {
-            console.warn('⚠️ FFmpeg library structure different than expected. Attempting alternative loading...');
-            showError('FFmpeg library loaded but in unexpected format. Please check console for details.');
-        }
+    // Check if elements exist
+    if (!elements.convertBtn) {
+        console.error('Converter elements not found');
+        return;
     }
 
-    /**
-     * Bind event listeners
-     */
-    function bindEvents() {
-        elements.convertBtn.addEventListener('click', handleConvertClick);
-        elements.downloadBtn.addEventListener('click', handleDownloadClick);
-        elements.convertAnotherBtn.addEventListener('click', resetConverter);
-        elements.videoFile.addEventListener('change', handleFileSelect);
+    // Show upload section
+    elements.uploadSection.style.display = 'block';
+
+    // Bind event listeners
+    bindEvents();
+
+    // Load ffmpeg
+    console.log('Initializing FFmpeg...');
+    loadFFmpeg();
+}
+
+/**
+ * Bind event listeners
+ */
+function bindEvents() {
+    elements.convertBtn.addEventListener('click', handleConvertClick);
+    elements.downloadBtn.addEventListener('click', handleDownloadClick);
+    elements.convertAnotherBtn.addEventListener('click', resetConverter);
+    elements.videoFile.addEventListener('change', handleFileSelect);
+    
+    // Drag and drop
+    elements.uploadArea.addEventListener('dragover', handleDragOver);
+    elements.uploadArea.addEventListener('dragleave', handleDragLeave);
+    elements.uploadArea.addEventListener('drop', handleDrop);
+}
+
+/**
+ * Load ffmpeg.wasm
+ */
+async function loadFFmpeg() {
+    try {
+        console.log('Starting FFmpeg load...');
         
-        // Drag and drop
-        elements.uploadArea.addEventListener('dragover', handleDragOver);
-        elements.uploadArea.addEventListener('dragleave', handleDragLeave);
-        elements.uploadArea.addEventListener('drop', handleDrop);
-    }
-
-    /**
-     * Load ffmpeg.wasm
-     */
-    async function loadFFmpeg() {
-        try {
-            console.log('Starting FFmpeg load...');
-            
-            // Double check createFFmpeg is available
-            if (typeof createFFmpeg === 'undefined') {
-                console.error('createFFmpeg function not available');
-                throw new Error('FFmpeg library not loaded from CDN. Please check your internet connection and refresh the page.');
-            }
-
-            console.log('FFmpeg library found, creating instance...');
-            
-            // Create FFmpeg instance with logging (v0.10.x API - no SharedArrayBuffer needed)
-            ffmpeg = createFFmpeg({
-                log: true,
-                progress: ({ ratio }) => {
-                    const percent = Math.round(ratio * 100);
-                    if (percent > 0 && percent <= 100) {
-                        updateProgress('Converting...', Math.min(50 + percent / 2, 95));
-                    }
-                }
-            });
-
-            console.log('Loading FFmpeg core (this may take a moment)...');
-            await ffmpeg.load();
-
-            isFFmpegLoaded = true;
-            console.log('✅ FFmpeg loaded successfully! Ready to convert videos.');
-            
-        } catch (error) {
-            console.error('❌ Error loading FFmpeg:', error);
-            isFFmpegLoaded = false;
-            
-            let errorMsg = 'Failed to load FFmpeg. ';
-            if (error.message && error.message.includes('SharedArrayBuffer')) {
-                errorMsg += 'Browser security settings detected. Using fallback mode...';
-                // The corePath should handle this, but if it still fails, inform user
-                console.log('Attempting alternative core loading...');
-            } else if (error.message && error.message.includes('not loaded from CDN')) {
-                errorMsg += 'The FFmpeg library failed to download. Please check your internet connection and refresh the page.';
-            } else if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
-                errorMsg += 'Network error - please check your internet connection.';
-            } else {
-                errorMsg += error.message || 'Unknown error occurred. Try refreshing the page.';
-            }
-            
-            showError(errorMsg);
+        // Check if FFmpeg modules are available
+        if (typeof window.FFmpegModule === 'undefined') {
+            throw new Error('FFmpeg modules not loaded. Please refresh the page.');
         }
+
+        const { FFmpeg, toBlobURL } = window.FFmpegModule;
+        
+        console.log('Creating FFmpeg instance...');
+        ffmpeg = new FFmpeg();
+        
+        // Set up logging
+        ffmpeg.on('log', ({ message }) => {
+            console.log('[FFmpeg]:', message);
+        });
+
+        // Set up progress tracking
+        ffmpeg.on('progress', ({ progress }) => {
+            const percent = Math.round(progress * 100);
+            if (percent > 0 && percent <= 100) {
+                updateProgress('Converting...', percent);
+            }
+        });
+
+        console.log('Loading FFmpeg core...');
+        const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+        
+        await ffmpeg.load({
+            coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+            wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+        });
+
+        isFFmpegLoaded = true;
+        console.log('✅ FFmpeg loaded successfully! Ready to convert videos.');
+        
+    } catch (error) {
+        console.error('❌ Error loading FFmpeg:', error);
+        isFFmpegLoaded = false;
+        showError(`Failed to load FFmpeg: ${error.message}. Please refresh the page and try again.`);
     }
+}
 
     /**
      * Handle convert button click
@@ -464,11 +434,9 @@
         }
     }
 
-    // Initialize when DOM is ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-
-})();
+// Initialize when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+} else {
+    init();
+}
