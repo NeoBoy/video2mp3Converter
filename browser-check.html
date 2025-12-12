@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Browser Compatibility Check</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            max-width: 800px;
+            margin: 2rem auto;
+            padding: 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .card {
+            background: white;
+            border-radius: 1rem;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #1e293b;
+            margin-top: 0;
+        }
+        .check-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 1rem;
+            margin: 1rem 0;
+            border-radius: 0.5rem;
+            border-left: 4px solid #cbd5e1;
+        }
+        .check-item.success {
+            background: #f0fdf4;
+            border-left-color: #10b981;
+        }
+        .check-item.error {
+            background: #fee2e2;
+            border-left-color: #ef4444;
+        }
+        .icon {
+            font-size: 2rem;
+        }
+        .details {
+            background: #f8fafc;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        .warning {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+        }
+        .button {
+            display: inline-block;
+            background: #6366f1;
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.5rem;
+            text-decoration: none;
+            font-weight: 600;
+            margin: 1rem 0;
+        }
+        .button:hover {
+            background: #4f46e5;
+        }
+        noscript {
+            display: block;
+            background: #fee2e2;
+            border: 2px solid #ef4444;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            margin: 1rem 0;
+            font-weight: 600;
+            color: #991b1b;
+        }
+    </style>
+</head>
+<body>
+    <noscript>
+        <div class="card">
+            <h1>⚠️ JavaScript is Disabled</h1>
+            <p><strong>Your browser has JavaScript disabled.</strong></p>
+            <p>To use the Video to MP3 Converter, you need to enable JavaScript in your browser settings.</p>
+            
+            <h3>How to Enable JavaScript:</h3>
+            <ul>
+                <li><strong>Chrome:</strong> Settings → Privacy and security → Site settings → JavaScript → Allow</li>
+                <li><strong>Firefox:</strong> Type "about:config" in address bar → search "javascript.enabled" → set to true</li>
+                <li><strong>Safari:</strong> Preferences → Security → Enable JavaScript</li>
+                <li><strong>Edge:</strong> Settings → Site permissions → JavaScript → Allow</li>
+            </ul>
+        </div>
+    </noscript>
+
+    <div class="card">
+        <h1>🔍 Browser Compatibility Check</h1>
+        <p>Checking if your browser supports the Video to MP3 Converter...</p>
+
+        <div id="results">
+            <!-- Results will be inserted here by JavaScript -->
+        </div>
+
+        <div id="recommendations" style="display:none;">
+            <h3>Recommendations:</h3>
+            <div id="rec-content"></div>
+        </div>
+    </div>
+
+    <script>
+        const results = document.getElementById('results');
+        const recommendations = document.getElementById('recommendations');
+        const recContent = document.getElementById('rec-content');
+        
+        let allPassed = true;
+        const checks = [];
+
+        // Check 1: JavaScript is enabled (obviously true if this runs)
+        checks.push({
+            name: 'JavaScript Support',
+            passed: true,
+            message: 'JavaScript is enabled and working'
+        });
+
+        // Check 2: WebAssembly support
+        const wasmSupported = (() => {
+            try {
+                if (typeof WebAssembly === "object"
+                    && typeof WebAssembly.instantiate === "function") {
+                    const module = new WebAssembly.Module(Uint8Array.of(0x0, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00));
+                    if (module instanceof WebAssembly.Module)
+                        return new WebAssembly.Instance(module) instanceof WebAssembly.Instance;
+                }
+            } catch (e) {
+                return false;
+            }
+            return false;
+        })();
+        
+        checks.push({
+            name: 'WebAssembly Support',
+            passed: wasmSupported,
+            message: wasmSupported ? 'WebAssembly is supported' : 'WebAssembly is NOT supported'
+        });
+        
+        if (!wasmSupported) allPassed = false;
+
+        // Check 3: File API support
+        const fileApiSupported = !!(window.File && window.FileReader && window.FileList && window.Blob);
+        checks.push({
+            name: 'File API Support',
+            passed: fileApiSupported,
+            message: fileApiSupported ? 'File upload is supported' : 'File API is NOT supported'
+        });
+        
+        if (!fileApiSupported) allPassed = false;
+
+        // Check 4: Fetch API support
+        const fetchSupported = typeof fetch !== 'undefined';
+        checks.push({
+            name: 'Fetch API Support',
+            passed: fetchSupported,
+            message: fetchSupported ? 'Network requests are supported' : 'Fetch API is NOT supported'
+        });
+        
+        if (!fetchSupported) allPassed = false;
+
+        // Check 5: ES6 support
+        let es6Supported = false;
+        try {
+            eval("const test = (x) => x + 1");
+            es6Supported = true;
+        } catch (e) {
+            es6Supported = false;
+        }
+        
+        checks.push({
+            name: 'Modern JavaScript (ES6+)',
+            passed: es6Supported,
+            message: es6Supported ? 'Modern JavaScript features supported' : 'Modern JavaScript NOT fully supported'
+        });
+        
+        if (!es6Supported) allPassed = false;
+
+        // Display results
+        checks.forEach(check => {
+            const div = document.createElement('div');
+            div.className = `check-item ${check.passed ? 'success' : 'error'}`;
+            div.innerHTML = `
+                <span class="icon">${check.passed ? '✅' : '❌'}</span>
+                <div>
+                    <strong>${check.name}</strong><br>
+                    ${check.message}
+                </div>
+            `;
+            results.appendChild(div);
+        });
+
+        // Browser info
+        const detailsDiv = document.createElement('div');
+        detailsDiv.className = 'details';
+        detailsDiv.innerHTML = `
+            <strong>Browser Information:</strong><br>
+            User Agent: ${navigator.userAgent}<br>
+            Platform: ${navigator.platform}<br>
+            Language: ${navigator.language}
+        `;
+        results.appendChild(detailsDiv);
+
+        // Show recommendations if needed
+        if (!allPassed) {
+            recommendations.style.display = 'block';
+            
+            let recs = '<div class="warning">';
+            
+            if (!wasmSupported) {
+                recs += '<p><strong>⚠️ WebAssembly is required</strong></p>';
+                recs += '<p>Your browser does not support WebAssembly, which is required for FFmpeg.wasm.</p>';
+                recs += '<p><strong>Solution:</strong> Please update to a modern browser:</p>';
+                recs += '<ul>';
+                recs += '<li>Chrome 57+ (recommended)</li>';
+                recs += '<li>Firefox 52+</li>';
+                recs += '<li>Safari 11+</li>';
+                recs += '<li>Edge 16+</li>';
+                recs += '</ul>';
+            }
+            
+            if (!fileApiSupported || !fetchSupported || !es6Supported) {
+                recs += '<p><strong>Your browser is outdated</strong></p>';
+                recs += '<p>Please update to the latest version of your browser.</p>';
+            }
+            
+            recs += '</div>';
+            recContent.innerHTML = recs;
+        } else {
+            const successDiv = document.createElement('div');
+            successDiv.className = 'check-item success';
+            successDiv.innerHTML = `
+                <span class="icon">🎉</span>
+                <div>
+                    <strong>All checks passed!</strong><br>
+                    Your browser is fully compatible with the Video to MP3 Converter.
+                    <br><br>
+                    <a href="demo.html" class="button">Go to Converter</a>
+                </div>
+            `;
+            results.appendChild(successDiv);
+        }
+    </script>
+</body>
+</html>

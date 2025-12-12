@@ -62,8 +62,14 @@
         // Bind event listeners
         bindEvents();
 
-        // Load ffmpeg
-        loadFFmpeg();
+        // Check FFmpeg library availability
+        console.log('Checking FFmpeg availability...');
+        console.log('FFmpeg object:', typeof FFmpeg);
+        
+        // Add a small delay to ensure CDN script is fully loaded
+        setTimeout(() => {
+            loadFFmpeg();
+        }, 500);
     }
 
     /**
@@ -88,14 +94,14 @@
         try {
             console.log('Starting FFmpeg load...');
             
-            if (typeof FFmpegWASM === 'undefined') {
-                throw new Error('FFmpeg library not loaded. Please check your internet connection.');
+            // Check if FFmpeg library is available
+            if (typeof FFmpeg === 'undefined' || typeof FFmpeg.FFmpeg === 'undefined') {
+                console.error('FFmpeg object not found:', typeof FFmpeg);
+                throw new Error('FFmpeg library not loaded from CDN. Please check your internet connection and refresh the page.');
             }
 
-            const { FFmpeg } = FFmpegWASM;
-            const { toBlobURL } = FFmpegWASM;
-            
-            ffmpeg = new FFmpeg();
+            console.log('FFmpeg library found, creating instance...');
+            ffmpeg = new FFmpeg.FFmpeg();
             
             // Set up progress logging
             ffmpeg.on('log', ({ message }) => {
@@ -112,21 +118,32 @@
                 }
             });
 
-            // Load ffmpeg core with proper URLs
-            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+            // Load ffmpeg core
+            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
             
-            console.log('Loading FFmpeg core files...');
+            console.log('Loading FFmpeg core from:', baseURL);
             await ffmpeg.load({
-                coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
-                wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+                coreURL: `${baseURL}/ffmpeg-core.js`,
+                wasmURL: `${baseURL}/ffmpeg-core.wasm`,
             });
 
             isFFmpegLoaded = true;
-            console.log('FFmpeg loaded successfully!');
+            console.log('✅ FFmpeg loaded successfully!');
             
         } catch (error) {
-            console.error('Error loading FFmpeg:', error);
-            showError(`Failed to load FFmpeg: ${error.message}. Please refresh and try again.`);
+            console.error('❌ Error loading FFmpeg:', error);
+            isFFmpegLoaded = false;
+            
+            let errorMsg = 'Failed to load FFmpeg. ';
+            if (error.message.includes('not loaded from CDN')) {
+                errorMsg += 'Please check your internet connection and refresh the page.';
+            } else if (error.message.includes('fetch')) {
+                errorMsg += 'Network error - check your internet connection.';
+            } else {
+                errorMsg += error.message || 'Unknown error occurred.';
+            }
+            
+            showError(errorMsg);
         }
     }
 
