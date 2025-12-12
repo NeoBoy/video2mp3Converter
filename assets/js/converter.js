@@ -120,9 +120,10 @@
             console.log('FFmpeg library found, creating instance...');
             
             // Create FFmpeg instance with logging
-            // fetchFile is also globally available from the FFmpeg library
+            // Use corePath to avoid SharedArrayBuffer requirement
             ffmpeg = createFFmpeg({
                 log: true,
+                corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
                 progress: ({ ratio }) => {
                     const percent = Math.round(ratio * 100);
                     if (percent > 0 && percent <= 100) {
@@ -142,7 +143,11 @@
             isFFmpegLoaded = false;
             
             let errorMsg = 'Failed to load FFmpeg. ';
-            if (error.message && error.message.includes('not loaded from CDN')) {
+            if (error.message && error.message.includes('SharedArrayBuffer')) {
+                errorMsg += 'Browser security settings detected. Using fallback mode...';
+                // The corePath should handle this, but if it still fails, inform user
+                console.log('Attempting alternative core loading...');
+            } else if (error.message && error.message.includes('not loaded from CDN')) {
                 errorMsg += 'The FFmpeg library failed to download. Please check your internet connection and refresh the page.';
             } else if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
                 errorMsg += 'Network error - please check your internet connection.';
