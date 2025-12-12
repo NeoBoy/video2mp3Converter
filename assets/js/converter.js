@@ -64,38 +64,29 @@
 
         // Check FFmpeg library availability
         console.log('Checking FFmpeg availability...');
-        console.log('Window object has:', Object.keys(window).filter(k => k.toLowerCase().includes('ffmpeg')));
-        console.log('Looking for createFFmpeg:', typeof createFFmpeg);
-        console.log('Looking for fetchFile:', typeof fetchFile);
+        console.log('Window FFmpeg-related keys:', Object.keys(window).filter(k => k.toLowerCase().includes('ffmpeg') || k.toLowerCase().includes('fetch')));
+        console.log('Direct check - createFFmpeg:', typeof createFFmpeg);
+        console.log('Direct check - fetchFile:', typeof fetchFile);
+        console.log('Direct check - FFmpeg:', typeof FFmpeg);
         
-        // Wait for FFmpeg library to load
-        let checkCount = 0;
-        const maxChecks = 20; // Check for up to 4 seconds
-        
-        const checkFFmpegLoaded = () => {
-            checkCount++;
-            console.log(`Check #${checkCount}: createFFmpeg=${typeof createFFmpeg}, fetchFile=${typeof fetchFile}, ffmpegLoaded=${window.ffmpegLoaded}`);
-            
-            if (window.ffmpegError) {
-                console.error('FFmpeg error detected:', window.ffmpegError);
-                showError(window.ffmpegError);
-                return;
+        // The library might export under FFmpeg namespace
+        if (typeof FFmpeg !== 'undefined') {
+            console.log('FFmpeg object found! Properties:', Object.keys(FFmpeg));
+            if (FFmpeg.createFFmpeg) {
+                console.log('✅ Found FFmpeg.createFFmpeg - using namespaced version');
+                window.createFFmpeg = FFmpeg.createFFmpeg;
+                window.fetchFile = FFmpeg.fetchFile;
             }
-            
-            if (typeof createFFmpeg !== 'undefined' && typeof fetchFile !== 'undefined') {
-                console.log('✅ Both createFFmpeg and fetchFile found!');
-                loadFFmpeg();
-            } else if (checkCount >= maxChecks) {
-                console.error('❌ Timeout: FFmpeg functions not found after', maxChecks, 'checks');
-                showError('FFmpeg library loaded but required functions not found. Try refreshing the page.');
-            } else {
-                // Keep checking
-                setTimeout(checkFFmpegLoaded, 200);
-            }
-        };
+        }
         
-        // Start checking immediately
-        checkFFmpegLoaded();
+        // Now check if functions are available
+        if (typeof createFFmpeg !== 'undefined' && typeof fetchFile !== 'undefined') {
+            console.log('✅ FFmpeg functions ready immediately!');
+            loadFFmpeg();
+        } else {
+            console.warn('⚠️ FFmpeg library structure different than expected. Attempting alternative loading...');
+            showError('FFmpeg library loaded but in unexpected format. Please check console for details.');
+        }
     }
 
     /**
