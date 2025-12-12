@@ -86,38 +86,47 @@
      */
     async function loadFFmpeg() {
         try {
-            updateProgress('Loading FFmpeg...', 0);
+            console.log('Starting FFmpeg load...');
             
-            if (typeof FFmpeg === 'undefined') {
-                throw new Error('FFmpeg library not loaded');
+            if (typeof FFmpegWASM === 'undefined') {
+                throw new Error('FFmpeg library not loaded. Please check your internet connection.');
             }
 
-            ffmpeg = new FFmpeg.FFmpeg();
+            const { FFmpeg } = FFmpegWASM;
+            const { toBlobURL } = FFmpegWASM;
+            
+            ffmpeg = new FFmpeg();
             
             // Set up progress logging
             ffmpeg.on('log', ({ message }) => {
                 console.log('FFmpeg:', message);
-                elements.progressDetails.textContent = message;
+                if (elements.progressDetails) {
+                    elements.progressDetails.textContent = message.substring(0, 100);
+                }
             });
 
             ffmpeg.on('progress', ({ progress, time }) => {
                 const percent = Math.round(progress * 100);
-                updateProgress('Converting...', percent);
+                if (percent > 0 && percent <= 100) {
+                    updateProgress('Converting...', Math.min(50 + percent / 2, 95));
+                }
             });
 
-            // Load ffmpeg core
-            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+            // Load ffmpeg core with proper URLs
+            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/esm';
+            
+            console.log('Loading FFmpeg core files...');
             await ffmpeg.load({
-                coreURL: `${baseURL}/ffmpeg-core.js`,
-                wasmURL: `${baseURL}/ffmpeg-core.wasm`
+                coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
+                wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
             });
 
             isFFmpegLoaded = true;
-            console.log('FFmpeg loaded successfully');
+            console.log('FFmpeg loaded successfully!');
             
         } catch (error) {
             console.error('Error loading FFmpeg:', error);
-            showError('Failed to load FFmpeg. Please refresh the page and try again.');
+            showError(`Failed to load FFmpeg: ${error.message}. Please refresh and try again.`);
         }
     }
 
@@ -194,34 +203,41 @@
      */
     async function convertToMP3(videoBlob, filename) {
         try {
-            updateProgress('Preparing conversion...', 40);
+            updateProgress('Preparing conversion...', 20);
 
             // Write video file to ffmpeg filesystem
             const videoData = new Uint8Array(await videoBlob.arrayBuffer());
             const inputFileName = 'input.mp4';
             const outputFileName = 'output.mp3';
 
+            updateProgress('Writing file to memory...', 30);
             await ffmpeg.writeFile(inputFileName, videoData);
 
-            updateProgress('Converting to MP3...', 50);
+            updateProgress('Starting conversion...', 40);
 
             // Execute ffmpeg command
             // -i input.mp4: input file
             // -vn: no video
             // -acodec libmp3lame: use MP3 codec
             // -q:a 2: high quality (0-9, lower is better)
+            // -ar 44100: sample rate
+            // -ac 2: stereo
             await ffmpeg.exec([
                 '-i', inputFileName,
                 '-vn',
                 '-acodec', 'libmp3lame',
+                '-ar', '44100',
+                '-ac', '2',
                 '-q:a', '2',
                 outputFileName
             ]);
 
-            updateProgress('Finalizing...', 90);
+            updateProgress('Reading converted file...', 96);
 
             // Read the output file
             const data = await ffmpeg.readFile(outputFileName);
+            
+            updateProgress('Creating download...', 98);
             
             // Create blob for download
             const mp3Blob = new Blob([data.buffer], { type: 'audio/mpeg' });

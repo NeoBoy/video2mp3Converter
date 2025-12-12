@@ -149,7 +149,11 @@
     </div>
 
     <!-- Load FFmpeg from CDN -->
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+    <script>
+        // Make FFmpeg available globally
+        window.FFmpegWASM = FFmpeg;
+    </script>
     
     <!-- Load converter script -->
     <script src="assets/js/converter.js"></script>

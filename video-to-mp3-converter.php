@@ -60,10 +60,16 @@ class VideoToMP3Converter {
             // Enqueue ffmpeg.wasm from CDN
             wp_enqueue_script(
                 'ffmpeg-core',
-                'https://unpkg.com/@ffmpeg/ffmpeg@0.12.6/dist/umd/ffmpeg.js',
+                'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js',
                 array(),
-                '0.12.6',
+                '0.12.10',
                 true
+            );
+            
+            // Make FFmpeg available globally
+            wp_add_inline_script(
+                'ffmpeg-core',
+                'window.FFmpegWASM = FFmpeg;'
             );
             
             // Enqueue main JavaScript
