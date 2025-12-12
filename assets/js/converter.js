@@ -64,32 +64,38 @@
 
         // Check FFmpeg library availability
         console.log('Checking FFmpeg availability...');
+        console.log('Window object has:', Object.keys(window).filter(k => k.toLowerCase().includes('ffmpeg')));
+        console.log('Looking for createFFmpeg:', typeof createFFmpeg);
+        console.log('Looking for fetchFile:', typeof fetchFile);
         
         // Wait for FFmpeg library to load
+        let checkCount = 0;
+        const maxChecks = 20; // Check for up to 4 seconds
+        
         const checkFFmpegLoaded = () => {
-            console.log('Checking... createFFmpeg:', typeof createFFmpeg, 'ffmpegLoaded flag:', window.ffmpegLoaded);
+            checkCount++;
+            console.log(`Check #${checkCount}: createFFmpeg=${typeof createFFmpeg}, fetchFile=${typeof fetchFile}, ffmpegLoaded=${window.ffmpegLoaded}`);
             
             if (window.ffmpegError) {
+                console.error('FFmpeg error detected:', window.ffmpegError);
                 showError(window.ffmpegError);
                 return;
             }
             
-            if (typeof createFFmpeg !== 'undefined') {
-                console.log('✅ createFFmpeg function found!');
+            if (typeof createFFmpeg !== 'undefined' && typeof fetchFile !== 'undefined') {
+                console.log('✅ Both createFFmpeg and fetchFile found!');
                 loadFFmpeg();
-            } else if (window.ffmpegLoaded) {
-                // Library claims to be loaded but createFFmpeg not available yet
-                console.log('Library loaded but createFFmpeg not ready, retrying...');
-                setTimeout(checkFFmpegLoaded, 100);
+            } else if (checkCount >= maxChecks) {
+                console.error('❌ Timeout: FFmpeg functions not found after', maxChecks, 'checks');
+                showError('FFmpeg library loaded but required functions not found. Try refreshing the page.');
             } else {
-                // Still loading
-                console.log('Still waiting for FFmpeg library...');
+                // Keep checking
                 setTimeout(checkFFmpegLoaded, 200);
             }
         };
         
-        // Start checking after a short delay
-        setTimeout(checkFFmpegLoaded, 500);
+        // Start checking immediately
+        checkFFmpegLoaded();
     }
 
     /**
