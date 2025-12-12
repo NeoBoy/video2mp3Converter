@@ -57,12 +57,12 @@ class VideoToMP3Converter {
                 V2MP3_VERSION
             );
             
-            // Enqueue ffmpeg.wasm from CDN (stable 0.11.6 version)
+            // Enqueue ffmpeg.wasm from CDN (0.10.1 - no SharedArrayBuffer needed)
             wp_enqueue_script(
                 'ffmpeg-core',
-                'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js',
+                'https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js',
                 array(),
-                '0.11.6',
+                '0.10.1',
                 true
             );
             
