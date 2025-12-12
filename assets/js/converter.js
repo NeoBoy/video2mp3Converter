@@ -120,10 +120,10 @@
             console.log('FFmpeg library found, creating instance...');
             
             // Create FFmpeg instance with logging
-            // Use corePath to avoid SharedArrayBuffer requirement
+            // Use single-threaded core (no SharedArrayBuffer needed)
             ffmpeg = createFFmpeg({
                 log: true,
-                corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js',
+                corePath: 'https://unpkg.com/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js',
                 progress: ({ ratio }) => {
                     const percent = Math.round(ratio * 100);
                     if (percent > 0 && percent <= 100) {
