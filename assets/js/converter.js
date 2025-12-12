@@ -64,12 +64,29 @@
 
         // Check FFmpeg library availability
         console.log('Checking FFmpeg availability...');
-        console.log('createFFmpeg function:', typeof createFFmpeg);
         
-        // Add a small delay to ensure CDN script is fully loaded
-        setTimeout(() => {
-            loadFFmpeg();
-        }, 500);
+        // Wait for FFmpeg library to load
+        const checkFFmpegLoaded = () => {
+            if (window.ffmpegError) {
+                showError(window.ffmpegError);
+                return;
+            }
+            
+            if (typeof createFFmpeg !== 'undefined') {
+                console.log('createFFmpeg function: available');
+                loadFFmpeg();
+            } else if (window.ffmpegLoaded) {
+                // Library loaded but createFFmpeg not available yet
+                setTimeout(checkFFmpegLoaded, 100);
+            } else {
+                // Still loading
+                console.log('Waiting for FFmpeg library to load...');
+                setTimeout(checkFFmpegLoaded, 200);
+            }
+        };
+        
+        // Start checking after a short delay
+        setTimeout(checkFFmpegLoaded, 300);
     }
 
     /**
@@ -94,16 +111,16 @@
         try {
             console.log('Starting FFmpeg load...');
             
-            // Check if createFFmpeg function is available (version 0.11.x)
+            // Double check createFFmpeg is available
             if (typeof createFFmpeg === 'undefined') {
-                console.error('createFFmpeg function not found');
+                console.error('createFFmpeg function not available');
                 throw new Error('FFmpeg library not loaded from CDN. Please check your internet connection and refresh the page.');
             }
 
             console.log('FFmpeg library found, creating instance...');
             
             // Create FFmpeg instance with logging
-            const { createFFmpeg, fetchFile } = FFmpegWASM;
+            // fetchFile is also globally available from the FFmpeg library
             ffmpeg = createFFmpeg({
                 log: true,
                 progress: ({ ratio }) => {
@@ -113,15 +130,12 @@
                     }
                 }
             });
-            
-            // Store fetchFile for later use
-            window.fetchFile = fetchFile;
 
-            console.log('Loading FFmpeg core...');
+            console.log('Loading FFmpeg core (this may take a moment)...');
             await ffmpeg.load();
 
             isFFmpegLoaded = true;
-            console.log('✅ FFmpeg loaded successfully!');
+            console.log('✅ FFmpeg loaded successfully! Ready to convert videos.');
             
         } catch (error) {
             console.error('❌ Error loading FFmpeg:', error);
@@ -129,11 +143,11 @@
             
             let errorMsg = 'Failed to load FFmpeg. ';
             if (error.message && error.message.includes('not loaded from CDN')) {
-                errorMsg += 'Please check your internet connection and refresh the page.';
-            } else if (error.message && error.message.includes('fetch')) {
-                errorMsg += 'Network error - check your internet connection.';
+                errorMsg += 'The FFmpeg library failed to download. Please check your internet connection and refresh the page.';
+            } else if (error.message && (error.message.includes('fetch') || error.message.includes('network'))) {
+                errorMsg += 'Network error - please check your internet connection.';
             } else {
-                errorMsg += error.message || 'Unknown error occurred.';
+                errorMsg += error.message || 'Unknown error occurred. Try refreshing the page.';
             }
             
             showError(errorMsg);
@@ -220,7 +234,8 @@
             const outputFileName = 'output.mp3';
 
             updateProgress('Writing file to memory...', 30);
-            ffmpeg.FS('writeFile', inputFileName, await window.fetchFile(videoBlob));
+            // fetchFile is globally available from the FFmpeg library
+            ffmpeg.FS('writeFile', inputFileName, await fetchFile(videoBlob));
 
             updateProgress('Starting conversion...', 40);
 

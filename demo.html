@@ -148,24 +148,23 @@
         </div>
     </div>
 
-    <!-- Load FFmpeg from CDN (stable version) -->
-    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
-    
-    <!-- Wait for FFmpeg to load before initializing converter -->
+    <!-- Load FFmpeg from multiple CDN sources for reliability -->
     <script>
-        // Ensure FFmpeg is loaded before proceeding
-        if (typeof createFFmpeg === 'undefined') {
-            console.error('FFmpeg failed to load from CDN');
-            document.addEventListener('DOMContentLoaded', function() {
-                const errorDiv = document.getElementById('errorMessage');
-                if (errorDiv) {
-                    errorDiv.textContent = 'Failed to load FFmpeg from CDN. Please check your internet connection and refresh the page.';
-                    errorDiv.style.display = 'block';
-                }
-            });
-        } else {
-            console.log('FFmpeg library loaded successfully from CDN');
-        }
+        // Try loading FFmpeg from CDN
+        window.ffmpegLoaded = false;
+        window.ffmpegError = null;
+    </script>
+    
+    <!-- Primary CDN: jsdelivr -->
+    <script 
+        src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"
+        onload="window.ffmpegLoaded = true; console.log('✅ FFmpeg loaded from jsdelivr CDN');"
+        onerror="console.warn('⚠️ jsdelivr CDN failed, trying unpkg...'); 
+                 const script = document.createElement('script');
+                 script.src = 'https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js';
+                 script.onload = function() { window.ffmpegLoaded = true; console.log('✅ FFmpeg loaded from unpkg CDN'); };
+                 script.onerror = function() { window.ffmpegError = 'All CDNs failed. Please check your internet connection.'; console.error('❌ All CDN sources failed'); };
+                 document.head.appendChild(script);">
     </script>
     
     <!-- Load converter script -->
