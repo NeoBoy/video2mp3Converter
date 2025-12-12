@@ -64,7 +64,7 @@
 
         // Check FFmpeg library availability
         console.log('Checking FFmpeg availability...');
-        console.log('FFmpeg object:', typeof FFmpeg);
+        console.log('createFFmpeg function:', typeof createFFmpeg);
         
         // Add a small delay to ensure CDN script is fully loaded
         setTimeout(() => {
@@ -94,38 +94,31 @@
         try {
             console.log('Starting FFmpeg load...');
             
-            // Check if FFmpeg library is available
-            if (typeof FFmpeg === 'undefined' || typeof FFmpeg.FFmpeg === 'undefined') {
-                console.error('FFmpeg object not found:', typeof FFmpeg);
+            // Check if createFFmpeg function is available (version 0.11.x)
+            if (typeof createFFmpeg === 'undefined') {
+                console.error('createFFmpeg function not found');
                 throw new Error('FFmpeg library not loaded from CDN. Please check your internet connection and refresh the page.');
             }
 
             console.log('FFmpeg library found, creating instance...');
-            ffmpeg = new FFmpeg.FFmpeg();
             
-            // Set up progress logging
-            ffmpeg.on('log', ({ message }) => {
-                console.log('FFmpeg:', message);
-                if (elements.progressDetails) {
-                    elements.progressDetails.textContent = message.substring(0, 100);
+            // Create FFmpeg instance with logging
+            const { createFFmpeg, fetchFile } = FFmpegWASM;
+            ffmpeg = createFFmpeg({
+                log: true,
+                progress: ({ ratio }) => {
+                    const percent = Math.round(ratio * 100);
+                    if (percent > 0 && percent <= 100) {
+                        updateProgress('Converting...', Math.min(50 + percent / 2, 95));
+                    }
                 }
             });
-
-            ffmpeg.on('progress', ({ progress, time }) => {
-                const percent = Math.round(progress * 100);
-                if (percent > 0 && percent <= 100) {
-                    updateProgress('Converting...', Math.min(50 + percent / 2, 95));
-                }
-            });
-
-            // Load ffmpeg core
-            const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
             
-            console.log('Loading FFmpeg core from:', baseURL);
-            await ffmpeg.load({
-                coreURL: `${baseURL}/ffmpeg-core.js`,
-                wasmURL: `${baseURL}/ffmpeg-core.wasm`,
-            });
+            // Store fetchFile for later use
+            window.fetchFile = fetchFile;
+
+            console.log('Loading FFmpeg core...');
+            await ffmpeg.load();
 
             isFFmpegLoaded = true;
             console.log('✅ FFmpeg loaded successfully!');
@@ -135,9 +128,9 @@
             isFFmpegLoaded = false;
             
             let errorMsg = 'Failed to load FFmpeg. ';
-            if (error.message.includes('not loaded from CDN')) {
+            if (error.message && error.message.includes('not loaded from CDN')) {
                 errorMsg += 'Please check your internet connection and refresh the page.';
-            } else if (error.message.includes('fetch')) {
+            } else if (error.message && error.message.includes('fetch')) {
                 errorMsg += 'Network error - check your internet connection.';
             } else {
                 errorMsg += error.message || 'Unknown error occurred.';
@@ -222,13 +215,12 @@
         try {
             updateProgress('Preparing conversion...', 20);
 
-            // Write video file to ffmpeg filesystem
-            const videoData = new Uint8Array(await videoBlob.arrayBuffer());
+            // Write video file to ffmpeg filesystem (version 0.11.x API)
             const inputFileName = 'input.mp4';
             const outputFileName = 'output.mp3';
 
             updateProgress('Writing file to memory...', 30);
-            await ffmpeg.writeFile(inputFileName, videoData);
+            ffmpeg.FS('writeFile', inputFileName, await window.fetchFile(videoBlob));
 
             updateProgress('Starting conversion...', 40);
 
@@ -239,7 +231,7 @@
             // -q:a 2: high quality (0-9, lower is better)
             // -ar 44100: sample rate
             // -ac 2: stereo
-            await ffmpeg.exec([
+            await ffmpeg.run(
                 '-i', inputFileName,
                 '-vn',
                 '-acodec', 'libmp3lame',
@@ -247,12 +239,12 @@
                 '-ac', '2',
                 '-q:a', '2',
                 outputFileName
-            ]);
+            );
 
             updateProgress('Reading converted file...', 96);
 
             // Read the output file
-            const data = await ffmpeg.readFile(outputFileName);
+            const data = ffmpeg.FS('readFile', outputFileName);
             
             updateProgress('Creating download...', 98);
             
@@ -266,8 +258,8 @@
 
             // Clean up ffmpeg filesystem
             try {
-                await ffmpeg.deleteFile(inputFileName);
-                await ffmpeg.deleteFile(outputFileName);
+                ffmpeg.FS('unlink', inputFileName);
+                ffmpeg.FS('unlink', outputFileName);
             } catch (e) {
                 console.warn('Error cleaning up files:', e);
             }

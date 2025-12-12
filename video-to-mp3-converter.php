@@ -57,12 +57,12 @@ class VideoToMP3Converter {
                 V2MP3_VERSION
             );
             
-            // Enqueue ffmpeg.wasm from CDN (UMD version)
+            // Enqueue ffmpeg.wasm from CDN (stable 0.11.6 version)
             wp_enqueue_script(
                 'ffmpeg-core',
-                'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js',
+                'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js',
                 array(),
-                '0.12.10',
+                '0.11.6',
                 true
             );
             
