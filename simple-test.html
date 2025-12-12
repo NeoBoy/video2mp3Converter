@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FFmpeg Simple Test</title>
+</head>
+<body>
+    <h1>FFmpeg.wasm Simple Test</h1>
+    <p>Using version 0.11.6 (works without SharedArrayBuffer)</p>
+    <button id="loadBtn">Load FFmpeg</button>
+    
+    <div style="margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
+        <h3>Option 1: From URL</h3>
+        <input type="text" id="urlInput" placeholder="Enter direct video URL (MP4, WebM, etc.)" style="width: 400px;" disabled>
+        <label style="margin-left: 10px;">
+            <input type="checkbox" id="useCorsProxy" checked> Use CORS Proxy
+        </label>
+        <button id="convertUrlBtn" disabled>Convert URL to MP3</button>
+        <p style="font-size: 12px; color: #666; margin-top: 5px;">
+            ✅ Direct video URLs (MP4, WebM, MKV, AVI, etc.)<br>
+            ✅ Local files: http://localhost:8000/video.mp4<br>
+            ❌ YouTube/streaming sites (require server-side processing)<br>
+            💡 For YouTube: Download the video first, then upload it using Option 2
+        </p>
+    </div>
+    
+    <div style="margin: 20px 0; padding: 20px; border: 1px solid #ccc; border-radius: 5px;">
+        <h3>Option 2: Upload File</h3>
+        <input type="file" id="fileInput" accept="video/*" disabled>
+        <button id="convertBtn" disabled>Convert File to MP3</button>
+    </div>
+    
+    <div id="status"></div>
+    <audio id="audioPlayer" controls style="display:none; margin-top: 20px;"></audio>
+
+    <!-- Use older version that works without complex headers -->
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+    
+    <script>
+        const { createFFmpeg, fetchFile } = FFmpeg;
+        let ffmpeg = null;
+        
+        const loadBtn = document.getElementById('loadBtn');
+        const urlInput = document.getElementById('urlInput');
+        const useCorsProxy = document.getElementById('useCorsProxy');
+        const convertUrlBtn = document.getElementById('convertUrlBtn');
+        const fileInput = document.getElementById('fileInput');
+        const convertBtn = document.getElementById('convertBtn');
+        const status = document.getElementById('status');
+        const audioPlayer = document.getElementById('audioPlayer');
+        let selectedFile = null;
+
+        loadBtn.addEventListener('click', async () => {
+            try {
+                status.textContent = 'Loading FFmpeg...';
+                loadBtn.disabled = true;
+                
+                ffmpeg = createFFmpeg({ 
+                    log: true,
+                    corePath: 'https://unpkg.com/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js'
+                });
+                
+                await ffmpeg.load();
+                
+                status.textContent = '✅ FFmpeg loaded! Select a video file or enter a URL.';
+                status.style.color = 'green';
+                urlInput.disabled = false;
+                convertUrlBtn.disabled = false;
+                fileInput.disabled = false;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                status.textContent = '❌ Error: ' + error.message;
+                status.style.color = 'red';
+                loadBtn.disabled = false;
+            }
+        });
+
+        convertUrlBtn.addEventListener('click', async () => {
+            const url = urlInput.value.trim();
+            if (!url) {
+                status.textContent = '⚠️ Please enter a URL';
+                status.style.color = 'orange';
+                return;
+            }
+            
+            // Check if it's a streaming site URL
+            const streamingSites = ['youtube.com', 'youtu.be', 'vimeo.com', 'dailymotion.com', 'twitch.tv'];
+            const isStreamingSite = streamingSites.some(site => url.includes(site));
+            
+            if (isStreamingSite) {
+                status.textContent = '❌ YouTube and streaming sites are not supported for direct URL conversion. Please download the video first and use "Upload File" option.';
+                status.style.color = 'red';
+                return;
+            }
+            
+            try {
+                convertUrlBtn.disabled = true;
+                status.textContent = 'Fetching video from URL...';
+                
+                // Use CORS proxy if enabled and URL is external
+                let fetchUrl = url;
+                if (useCorsProxy.checked && !url.startsWith('http://localhost') && !url.startsWith('http://127.0.0.1')) {
+                    fetchUrl = `https://corsproxy.io/?${encodeURIComponent(url)}`;
+                    console.log('Using CORS proxy for:', url);
+                }
+                
+                const videoData = await fetchFile(fetchUrl);
+                
+                status.textContent = 'Converting to MP3...';
+                
+                // Write file to FFmpeg filesystem
+                ffmpeg.FS('writeFile', 'input.video', videoData);
+                
+                // Convert to MP3 with error handling
+                try {
+                    await ffmpeg.run('-i', 'input.video', '-vn', '-acodec', 'libmp3lame', '-q:a', '2', 'output.mp3');
+                } catch (conversionError) {
+                    console.error('FFmpeg conversion error:', conversionError);
+                    // Clean up input file
+                    try { ffmpeg.FS('unlink', 'input.video'); } catch(e) {}
+                    throw new Error('Video conversion failed. The file may be corrupted or in an unsupported format.');
+                }
+                
+                // Check if output file exists
+                let data;
+                try {
+                    data = ffmpeg.FS('readFile', 'output.mp3');
+                } catch (readError) {
+                    console.error('Failed to read output:', readError);
+                    try { ffmpeg.FS('unlink', 'input.video'); } catch(e) {}
+                    throw new Error('Conversion completed but output file not found. The video format may not be supported.');
+                }
+                
+                // Create blob and URL
+                const blob = new Blob([data.buffer], { type: 'audio/mp3' });
+                const downloadUrl = URL.createObjectURL(blob);
+                
+                // Show player
+                audioPlayer.src = downloadUrl;
+                audioPlayer.style.display = 'block';
+                
+                // Download
+                const filename = url.split('/').pop().split('?')[0].replace(/\.[^/.]+$/, '') + '.mp3';
+                const a = document.createElement('a');
+                a.href = downloadUrl;
+                a.download = filename || 'audio.mp3';
+                a.click();
+                
+                status.textContent = '✅ Conversion complete! Download started.';
+                status.style.color = 'green';
+                
+                // Cleanup
+                try {
+                    ffmpeg.FS('unlink', 'input.video');
+                    ffmpeg.FS('unlink', 'output.mp3');
+                } catch(e) {
+                    console.warn('Cleanup error:', e);
+                }
+                
+                convertUrlBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Conversion error:', error);
+                let errorMsg = error.message;
+                if (error.message.includes('Failed to fetch') || error.message.includes('CORS')) {
+                    errorMsg = 'Failed to fetch video. The URL may not be accessible or CORS-protected. Try using a local file instead.';
+                }
+                status.textContent = '❌ Error: ' + errorMsg;
+                status.style.color = 'red';
+                convertUrlBtn.disabled = false;
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            selectedFile = e.target.files[0];
+            if (selectedFile) {
+                status.textContent = `File selected: ${selectedFile.name}`;
+                convertBtn.disabled = false;
+            }
+        });
+
+        convertBtn.addEventListener('click', async () => {
+            if (!selectedFile) return;
+            
+            try {
+                convertBtn.disabled = true;
+                status.textContent = 'Converting...';
+                
+                // Write file to FFmpeg filesystem
+                ffmpeg.FS('writeFile', 'input.video', await fetchFile(selectedFile));
+                
+                // Convert to MP3
+                await ffmpeg.run('-i', 'input.video', '-vn', '-acodec', 'libmp3lame', '-q:a', '2', 'output.mp3');
+                
+                // Read result
+                const data = ffmpeg.FS('readFile', 'output.mp3');
+                
+                // Create blob and URL
+                const blob = new Blob([data.buffer], { type: 'audio/mp3' });
+                const url = URL.createObjectURL(blob);
+                
+                // Show player
+                audioPlayer.src = url;
+                audioPlayer.style.display = 'block';
+                
+                // Download link
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = selectedFile.name.replace(/\.[^/.]+$/, '') + '.mp3';
+                a.click();
+                
+                status.textContent = '✅ Conversion complete! Download started.';
+                status.style.color = 'green';
+                
+                // Cleanup
+                ffmpeg.FS('unlink', 'input.video');
+                ffmpeg.FS('unlink', 'output.mp3');
+                
+                convertBtn.disabled = false;
+                
+            } catch (error) {
+                console.error('Conversion error:', error);
+                status.textContent = '❌ Conversion failed: ' + error.message;
+                status.style.color = 'red';
+                convertBtn.disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>
