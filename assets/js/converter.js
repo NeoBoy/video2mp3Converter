@@ -1,6 +1,7 @@
 /**
  * Video to MP3 Converter - Main JavaScript
  * Uses ffmpeg.wasm for client-side video processing
+ * Uses external microservice for YouTube downloads
  */
 
 // State
@@ -8,6 +9,7 @@ let ffmpeg = null;
 let isFFmpegLoaded = false;
 let currentVideoBlob = null;
 let currentFileName = 'audio';
+let microserviceUrl = window.v2mp3Data?.microserviceUrl || '';
 
 // DOM Elements
 const elements = {
@@ -137,6 +139,16 @@ async function loadFFmpeg() {
         
         if (!url && !currentVideoBlob) {
             showError('Please enter a video URL or upload a file');
+            return;
+        }
+
+        // Check if it's a YouTube URL
+        if (url && isYouTubeUrl(url)) {
+            if (!microserviceUrl) {
+                showError('YouTube conversion is not configured. Please contact the site administrator.');
+                return;
+            }
+            await convertYouTubeVideo(url);
             return;
         }
 
@@ -334,11 +346,15 @@ async function loadFFmpeg() {
     function handleDownloadClick() {
         const url = elements.downloadBtn.dataset.url;
         const filename = elements.downloadBtn.dataset.filename;
+        const isExternal = elements.downloadBtn.dataset.external === 'true';
 
         if (url && filename) {
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
+            if (isExternal) {
+                a.target = '_blank'; // Open in new tab for external URLs
+            }
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -389,12 +405,13 @@ async function loadFFmpeg() {
         uploadText.textContent = 'Click to upload or drag and drop';
         uploadText.style.color = '';
 
-        // Clean up download URL
-        if (elements.downloadBtn.dataset.url) {
+        // Clean up download URL (only if it's a blob URL)
+        if (elements.downloadBtn.dataset.url && !elements.downloadBtn.dataset.external) {
             URL.revokeObjectURL(elements.downloadBtn.dataset.url);
-            delete elements.downloadBtn.dataset.url;
-            delete elements.downloadBtn.dataset.filename;
         }
+        delete elements.downloadBtn.dataset.url;
+        delete elements.downloadBtn.dataset.filename;
+        delete elements.downloadBtn.dataset.external;
 
         hideError();
     }
@@ -432,6 +449,92 @@ async function loadFFmpeg() {
         } catch (_) {
             return false;
         }
+    }
+
+    /**
+     * Check if URL is a YouTube URL
+     */
+    function isYouTubeUrl(url) {
+        const patterns = [
+            /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i,
+            /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=.+/i,
+            /^(https?:\/\/)?(www\.)?youtu\.be\/.+/i
+        ];
+        
+        return patterns.some(pattern => pattern.test(url));
+    }
+
+    /**
+     * Convert YouTube video using microservice
+     */
+    async function convertYouTubeVideo(url) {
+        try {
+            elements.convertBtn.disabled = true;
+            updateProgress('Connecting to conversion service...', 10);
+            elements.progressSection.style.display = 'block';
+
+            // Get video info first
+            updateProgress('Fetching video information...', 20);
+            const infoResponse = await fetch(`${microserviceUrl}/api/info`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url })
+            });
+
+            if (!infoResponse.ok) {
+                const error = await infoResponse.json();
+                throw new Error(error.error || 'Failed to get video information');
+            }
+
+            const videoInfo = await infoResponse.json();
+            currentFileName = sanitizeFilename(videoInfo.title || 'youtube-audio');
+            
+            updateProgress(`Converting: ${videoInfo.title}...`, 40);
+
+            // Start conversion
+            const convertResponse = await fetch(`${microserviceUrl}/api/convert`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url })
+            });
+
+            if (!convertResponse.ok) {
+                const error = await convertResponse.json();
+                throw new Error(error.error || 'Failed to convert video');
+            }
+
+            const result = await convertResponse.json();
+            
+            updateProgress('Preparing download...', 90);
+
+            // Set download URL
+            const downloadUrl = `${microserviceUrl}${result.downloadUrl}`;
+            elements.downloadBtn.dataset.url = downloadUrl;
+            elements.downloadBtn.dataset.filename = `${currentFileName}.mp3`;
+            elements.downloadBtn.dataset.external = 'true';
+
+            updateProgress('Complete!', 100);
+            showResult();
+
+        } catch (error) {
+            console.error('Error converting YouTube video:', error);
+            showError(error.message || 'Failed to convert YouTube video. Please try again.');
+            resetUI();
+        }
+    }
+
+    /**
+     * Sanitize filename
+     */
+    function sanitizeFilename(filename) {
+        return filename
+            .replace(/[<>:"/\\|?*]/g, '') // Remove invalid chars
+            .replace(/\s+/g, '-') // Replace spaces with dashes
+            .substring(0, 100); // Limit length
     }
 
 // Initialize when DOM is ready

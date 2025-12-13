@@ -6,18 +6,18 @@
             </svg>
             Video to MP3 Converter
         </h2>
-        <p class="v2mp3-subtitle">Convert any video URL to MP3 format - 100% client-side processing</p>
+        <p class="v2mp3-subtitle">Convert local videos or YouTube videos to MP3 format</p>
     </div>
 
     <div class="v2mp3-main-content">
         <div class="v2mp3-input-section">
-            <label for="videoUrl" class="v2mp3-label">Video URL</label>
+            <label for="videoUrl" class="v2mp3-label">YouTube URL or Direct Video Link</label>
             <div class="v2mp3-input-wrapper">
                 <input 
                     type="url" 
                     id="videoUrl" 
                     class="v2mp3-input" 
-                    placeholder="Enter video URL (YouTube, direct video link, etc.)"
+                    placeholder="https://www.youtube.com/watch?v=... or direct video URL"
                     autocomplete="off"
                 />
                 <button id="convertBtn" class="v2mp3-button v2mp3-button-primary">
@@ -33,7 +33,7 @@
                     <circle cx="12" cy="12" r="10" stroke-width="2"/>
                     <path d="M12 16v-4M12 8h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
                 </svg>
-                <span>Note: For YouTube videos, you'll need to download the video first due to CORS restrictions.</span>
+                <span>✨ YouTube URLs supported! Also accepts direct video links and uploaded files.</span>
             </div>
         </div>
 
