@@ -67,9 +67,10 @@ app.post('/api/info', async (req, res) => {
     }
 
     try {
-        // Get video info using yt-dlp with Node.js runtime
+        // Get video info using yt-dlp with multiple fallback strategies
+        // Try android client first (less likely to be blocked), then ios, then web_creator
         const { stdout } = await execAsync(
-            `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=web" --js-runtimes node "${url}"`,
+            `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=android,ios,web_creator" --user-agent "com.google.android.youtube/19.09.37 (Linux; U; Android 13)" "${url}"`,
             { maxBuffer: 10 * 1024 * 1024 }
         );
 
@@ -116,7 +117,8 @@ app.post('/api/convert', async (req, res) => {
         // --audio-format mp3: convert to mp3
         // --audio-quality 0: best quality
         // -o: output template
-        const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist --extractor-args "youtube:player_client=web" --js-runtimes node -o "${outputPath}" "${url}"`;
+        // Use android client and mobile user agent to avoid bot detection
+        const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist --extractor-args "youtube:player_client=android,ios,web_creator" --user-agent "com.google.android.youtube/19.09.37 (Linux; U; Android 13)" -o "${outputPath}" "${url}"`;
         
         await execAsync(command, { 
             maxBuffer: 50 * 1024 * 1024,
