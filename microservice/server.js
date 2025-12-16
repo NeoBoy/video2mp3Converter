@@ -67,9 +67,9 @@ app.post('/api/info', async (req, res) => {
     }
 
     try {
-        // Get video info using yt-dlp
+        // Get video info using yt-dlp with Node.js runtime
         const { stdout } = await execAsync(
-            `yt-dlp --dump-json --no-playlist "${url}"`,
+            `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=web" --js-runtimes node "${url}"`,
             { maxBuffer: 10 * 1024 * 1024 }
         );
 
@@ -116,7 +116,7 @@ app.post('/api/convert', async (req, res) => {
         // --audio-format mp3: convert to mp3
         // --audio-quality 0: best quality
         // -o: output template
-        const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist -o "${outputPath}" "${url}"`;
+        const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist --extractor-args "youtube:player_client=web" --js-runtimes node -o "${outputPath}" "${url}"`;
         
         await execAsync(command, { 
             maxBuffer: 50 * 1024 * 1024,
