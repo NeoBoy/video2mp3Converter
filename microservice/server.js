@@ -168,14 +168,30 @@ app.post('/api/convert', async (req, res) => {
             timeout: 5 * 60 * 1000 // 5 minute timeout
         });
 
-        // Check if file exists
-        const fileExists = await fs.access(outputPath).then(() => true).catch(() => false);
+        // Check if file exists (yt-dlp might have created it without .mp3 or with different name)
+        let fileExists = await fs.access(outputPath).then(() => true).catch(() => false);
+        let actualPath = outputPath;
         
         if (!fileExists) {
-            throw new Error('Conversion completed but file not found');
+            // Check if yt-dlp created files in temp directory
+            console.log(`File not found at expected path: ${outputPath}`);
+            const files = await fs.readdir(TEMP_DIR);
+            console.log(`Files in temp directory:`, files);
+            
+            // Look for files matching the jobId
+            const matchingFiles = files.filter(f => f.startsWith(jobId));
+            if (matchingFiles.length > 0) {
+                actualPath = path.join(TEMP_DIR, matchingFiles[0]);
+                console.log(`Found file: ${actualPath}`);
+                // Rename to expected path
+                await fs.rename(actualPath, outputPath);
+            } else {
+                throw new Error('Conversion completed but file not found');
+            }
         }
 
         const stats = await fs.stat(outputPath);
+        console.log(`Conversion successful: ${jobId}, size: ${stats.size} bytes`);
         
         res.json({
             success: true,
@@ -221,8 +237,11 @@ app.post('/api/convert', async (req, res) => {
 app.get('/api/download/:jobId', async (req, res) => {
     const { jobId } = req.params;
     
+    console.log(`Download requested for job: ${jobId}`);
+    
     // Validate jobId format
     if (!/^[a-f0-9]{32}$/.test(jobId)) {
+        console.log(`Invalid job ID format: ${jobId}`);
         return res.status(400).json({ error: 'Invalid job ID' });
     }
 
@@ -231,6 +250,8 @@ app.get('/api/download/:jobId', async (req, res) => {
 
     try {
         await fs.access(filePath);
+        
+        console.log(`File found, preparing download: ${filePath}`);
         
         // Get filename from metadata or use default
         let filename = 'audio.mp3';
@@ -262,6 +283,16 @@ app.get('/api/download/:jobId', async (req, res) => {
         });
 
     } catch (error) {
+        console.log(`Download failed for job ${jobId}:`, error.message);
+        
+        // List files in temp directory for debugging
+        try {
+            const files = await fs.readdir(TEMP_DIR);
+            console.log(`Available files in temp directory:`, files.filter(f => f.includes(jobId)));
+        } catch (e) {
+            console.log(`Could not list temp directory:`, e.message);
+        }
+        
         res.status(404).json({ error: 'File not found or expired' });
     }
 });
