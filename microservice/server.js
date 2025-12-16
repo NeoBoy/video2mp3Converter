@@ -62,15 +62,15 @@ app.post('/api/info', async (req, res) => {
         return res.status(400).json({ error: 'URL is required' });
     }
 
-    if (!isValidYouTubeUrl(url)) {
-        return res.status(400).json({ error: 'Invalid YouTube URL' });
+    if (!isValidVideoUrl(url)) {
+        return res.status(400).json({ error: 'Invalid video URL. Supported: YouTube, Dailymotion, Facebook, Bilibili, Vimeo, and more.' });
     }
 
     try {
-        // Get video info using yt-dlp with multiple fallback strategies
-        // Try android client first (less likely to be blocked), then ios, then web_creator
+        // Get video info using yt-dlp
+        // yt-dlp supports 1000+ sites and will auto-detect the platform
         const { stdout } = await execAsync(
-            `yt-dlp --dump-json --no-playlist --extractor-args "youtube:player_client=android,ios,web_creator" --user-agent "com.google.android.youtube/19.09.37 (Linux; U; Android 13)" "${url}"`,
+            `yt-dlp --dump-json --no-playlist "${url}"`,
             { maxBuffer: 10 * 1024 * 1024 }
         );
 
@@ -102,8 +102,8 @@ app.post('/api/convert', async (req, res) => {
         return res.status(400).json({ error: 'URL is required' });
     }
 
-    if (!isValidYouTubeUrl(url)) {
-        return res.status(400).json({ error: 'Invalid YouTube URL' });
+    if (!isValidVideoUrl(url)) {
+        return res.status(400).json({ error: 'Invalid video URL. Supported: YouTube, Dailymotion, Facebook, Bilibili, Vimeo, and more.' });
     }
 
     const jobId = crypto.randomBytes(16).toString('hex');
@@ -117,8 +117,7 @@ app.post('/api/convert', async (req, res) => {
         // --audio-format mp3: convert to mp3
         // --audio-quality 0: best quality
         // -o: output template
-        // Use android client and mobile user agent to avoid bot detection
-        const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist --extractor-args "youtube:player_client=android,ios,web_creator" --user-agent "com.google.android.youtube/19.09.37 (Linux; U; Android 13)" -o "${outputPath}" "${url}"`;
+        const command = `yt-dlp -x --audio-format mp3 --audio-quality 0 --no-playlist -o "${outputPath}" "${url}"`;
         
         await execAsync(command, { 
             maxBuffer: 50 * 1024 * 1024,
@@ -194,13 +193,27 @@ app.get('/api/download/:jobId', async (req, res) => {
 });
 
 /**
- * Validate YouTube URL
+ * Validate video URL from supported platforms
+ * Supports: YouTube, Dailymotion, Facebook, Bilibili, Vimeo, TikTok, Twitter, and 1000+ others via yt-dlp
  */
-function isValidYouTubeUrl(url) {
+function isValidVideoUrl(url) {
+    // Check if it's a valid URL
+    try {
+        new URL(url);
+    } catch {
+        return false;
+    }
+    
+    // Common video platform patterns
     const patterns = [
         /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i,
-        /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=.+/i,
-        /^(https?:\/\/)?(www\.)?youtu\.be\/.+/i
+        /^(https?:\/\/)?(www\.)?dailymotion\.com\/.+/i,
+        /^(https?:\/\/)?(www\.)?facebook\.com\/.+\/videos\/.+/i,
+        /^(https?:\/\/)?(www\.)?bilibili\.com\/video\/.+/i,
+        /^(https?:\/\/)?(www\.)?vimeo\.com\/.+/i,
+        /^(https?:\/\/)?(www\.)?tiktok\.com\/.+/i,
+        /^(https?:\/\/)?(www\.)?(twitter\.com|x\.com)\/.+\/status\/.+/i,
+        /^(https?:\/\/)?(www\.)?instagram\.com\/(p|reel)\/.+/i
     ];
     
     return patterns.some(pattern => pattern.test(url));

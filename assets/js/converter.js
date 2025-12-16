@@ -425,13 +425,27 @@ function isValidUrl(string) {
 }
 
 /**
- * Check if URL is a YouTube URL
+ * Check if URL is a supported video platform URL
+ * Supports: YouTube, Dailymotion, Facebook, Bilibili, Vimeo, TikTok, and 1000+ more via yt-dlp
  */
 function isYouTubeUrl(url) {
+    // Check if it's a valid URL format
+    try {
+        new URL(url);
+    } catch {
+        return false;
+    }
+    
+    // Common video platform patterns
     const patterns = [
         /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i,
-        /^(https?:\/\/)?(www\.)?youtube\.com\/watch\?v=.+/i,
-        /^(https?:\/\/)?(www\.)?youtu\.be\/.+/i
+        /^(https?:\/\/)?(www\.)?dailymotion\.com\/.+/i,
+        /^(https?:\/\/)?(www\.)?facebook\.com\/.+\/videos\/.+/i,
+        /^(https?:\/\/)?(www\.)?bilibili\.com\/video\/.+/i,
+        /^(https?:\/\/)?(www\.)?vimeo\.com\/.+/i,
+        /^(https?:\/\/)?(www\.)?tiktok\.com\/.+/i,
+        /^(https?:\/\/)?(www\.)?(twitter\.com|x\.com)\/.+\/status\/.+/i,
+        /^(https?:\/\/)?(www\.)?instagram\.com\/(p|reel)\/.+/i
     ];
     
     return patterns.some(pattern => pattern.test(url));

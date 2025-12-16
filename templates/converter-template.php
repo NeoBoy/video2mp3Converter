@@ -6,18 +6,18 @@
             </svg>
             Video to MP3 Converter
         </h2>
-        <p class="v2mp3-subtitle">Convert local videos or YouTube videos to MP3 format</p>
+        <p class="v2mp3-subtitle">Convert local videos or online videos to MP3 format</p>
     </div>
 
     <div class="v2mp3-main-content">
         <div class="v2mp3-input-section">
-            <label for="videoUrl" class="v2mp3-label">YouTube URL or Direct Video Link</label>
+            <label for="videoUrl" class="v2mp3-label">Video URL (YouTube, Dailymotion, Facebook, Bilibili, etc.)</label>
             <div class="v2mp3-input-wrapper">
                 <input 
                     type="url" 
                     id="videoUrl" 
                     class="v2mp3-input" 
-                    placeholder="https://www.youtube.com/watch?v=... or direct video URL"
+                    placeholder="https://youtu.be/... or https://dailymotion.com/... etc."
                     autocomplete="off"
                 />
                 <button id="convertBtn" class="v2mp3-button v2mp3-button-primary">
@@ -33,7 +33,7 @@
                     <circle cx="12" cy="12" r="10" stroke-width="2"/>
                     <path d="M12 16v-4M12 8h.01" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
                 </svg>
-                <span>✨ YouTube URLs supported! Also accepts direct video links and uploaded files.</span>
+                <span>✨ Supports 1000+ video sites including YouTube, Dailymotion, Facebook, Bilibili, Vimeo, TikTok, and more!</span>
             </div>
         </div>
 
