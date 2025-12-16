@@ -71,10 +71,10 @@ class VideoToMP3Converter {
                 <?php
             }, 5);
             
-            // Enqueue main JavaScript as module
+            // Enqueue main JavaScript
             wp_enqueue_script(
                 'v2mp3-script',
-                V2MP3_PLUGIN_URL . 'assets/js/converter-legacy.js',
+                V2MP3_PLUGIN_URL . 'assets/js/converter.js',
                 array(),
                 V2MP3_VERSION,
                 true
