@@ -108,9 +108,28 @@ app.post('/api/convert', async (req, res) => {
 
     const jobId = crypto.randomBytes(16).toString('hex');
     const outputPath = path.join(TEMP_DIR, `${jobId}.mp3`);
+    const metadataPath = path.join(TEMP_DIR, `${jobId}.json`);
 
     try {
         console.log(`Starting conversion for job ${jobId}`);
+        
+        // First, get video metadata to extract title
+        const { stdout: metadataJson } = await execAsync(
+            `yt-dlp --dump-json --no-playlist "${url}"`,
+            { maxBuffer: 10 * 1024 * 1024 }
+        );
+        
+        const metadata = JSON.parse(metadataJson);
+        const videoTitle = metadata.title || 'audio';
+        
+        // Sanitize filename (remove invalid characters)
+        const sanitizedTitle = videoTitle
+            .replace(/[<>:"/\\|?*]/g, '') // Remove invalid chars
+            .replace(/\s+/g, '_') // Replace spaces with underscores
+            .substring(0, 100); // Limit length
+        
+        // Store metadata for download endpoint
+        await fs.writeFile(metadataPath, JSON.stringify({ title: sanitizedTitle }));
         
         // Download and convert to MP3 using yt-dlp
         // -x: extract audio
@@ -167,21 +186,40 @@ app.get('/api/download/:jobId', async (req, res) => {
     }
 
     const filePath = path.join(TEMP_DIR, `${jobId}.mp3`);
+    const metadataPath = path.join(TEMP_DIR, `${jobId}.json`);
 
     try {
         await fs.access(filePath);
         
+        // Get filename from metadata or use default
+        let filename = 'audio.mp3';
+        try {
+            const metadataContent = await fs.readFile(metadataPath, 'utf8');
+            const metadata = JSON.parse(metadataContent);
+            filename = `${metadata.title}.mp3`;
+        } catch (error) {
+            console.log('Metadata not found, using default filename');
+        }
+        
+        // Get file stats for Content-Length (required for IDM)
+        const stats = await fs.stat(filePath);
+        
+        // Set headers for proper download and IDM compatibility
         res.setHeader('Content-Type', 'audio/mpeg');
-        res.setHeader('Content-Disposition', `attachment; filename="audio-${jobId}.mp3"`);
+        res.setHeader('Content-Length', stats.size);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Accept-Ranges', 'bytes'); // Enable resumable downloads for IDM
+        res.setHeader('Cache-Control', 'no-cache');
         
         const fileStream = require('fs').createReadStream(filePath);
         fileStream.pipe(res);
 
-        // Delete file after sending
+        // Delete files after sending
         fileStream.on('end', async () => {
             try {
                 await fs.unlink(filePath);
-                console.log(`Cleaned up file after download: ${jobId}`);
+                await fs.unlink(metadataPath).catch(() => {}); // Ignore if doesn't exist
+                console.log(`Cleaned up files after download: ${jobId}`);
             } catch (error) {
                 console.error(`Error deleting file ${jobId}:`, error);
             }
