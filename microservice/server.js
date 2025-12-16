@@ -214,18 +214,10 @@ app.get('/api/download/:jobId', async (req, res) => {
         const fileStream = require('fs').createReadStream(filePath);
         fileStream.pipe(res);
 
-        // Delete files after sending (with delay to handle browser pre-flight requests)
-        fileStream.on('end', async () => {
-            // Wait a bit before cleanup in case browser makes multiple requests
-            setTimeout(async () => {
-                try {
-                    await fs.unlink(filePath);
-                    await fs.unlink(metadataPath).catch(() => {}); // Ignore if doesn't exist
-                    console.log(`Cleaned up files after download: ${jobId}`);
-                } catch (error) {
-                    console.error(`Error deleting file ${jobId}:`, error);
-                }
-            }, 5000); // 5 second delay
+        // Don't delete immediately - let hourly cleanup handle it
+        // This prevents 404 errors from browser pre-flight requests and IDM
+        fileStream.on('end', () => {
+            console.log(`Download completed: ${jobId} (will be cleaned up in hourly cycle)`);
         });
 
     } catch (error) {
