@@ -4,9 +4,7 @@ FROM node:18-alpine
 RUN apk add --no-cache \
     python3 \
     py3-pip \
-    ffmpeg \
-    && python3 -m ensurepip --upgrade \
-    && pip3 install --upgrade pip setuptools wheel
+    ffmpeg
 
 # Install yt-dlp
 RUN pip3 install --break-system-packages yt-dlp
