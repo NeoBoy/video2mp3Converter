@@ -316,43 +316,18 @@ function processFile(file) {
 /**
  * Handle download click
  */
-async function handleDownloadClick() {
+function handleDownloadClick() {
     const url = elements.downloadBtn.dataset.url;
     const filename = elements.downloadBtn.dataset.filename;
     const isExternal = elements.downloadBtn.dataset.external === 'true';
 
     if (url && filename) {
         if (isExternal) {
-            // For external URLs, fetch as blob to enable proper download with filename
-            try {
-                elements.downloadBtn.disabled = true;
-                elements.downloadBtn.textContent = 'Downloading...';
-                
-                const response = await fetch(url);
-                const blob = await response.blob();
-                const blobUrl = URL.createObjectURL(blob);
-                
-                const a = document.createElement('a');
-                a.href = blobUrl;
-                a.download = filename;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-                
-                // Clean up blob URL
-                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
-                
-                elements.downloadBtn.disabled = false;
-                elements.downloadBtn.textContent = 'Download MP3';
-            } catch (error) {
-                console.error('Download error:', error);
-                // Fallback: open in new tab
-                window.open(url, '_blank');
-                elements.downloadBtn.disabled = false;
-                elements.downloadBtn.textContent = 'Download MP3';
-            }
+            // For external URLs, just navigate to them
+            // IDM will intercept if installed, otherwise browser will download via Content-Disposition header
+            window.location.href = url;
         } else {
-            // For blob URLs (local conversion), trigger download directly
+            // For blob URLs (local conversion), trigger download
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
