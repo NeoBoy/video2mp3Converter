@@ -46,7 +46,7 @@ Upload to `/wp-content/plugins/video-to-mp3-converter/` and activate.
 ├── video-to-mp3-converter.php    # Main plugin
 ├── assets/
 │   ├── css/style.css              # Styles
-│   └── js/converter-legacy.js     # FFmpeg 0.11.6 (production)
+│   └── js/converter.js            # FFmpeg 0.11.6 (production)
 ├── templates/
 │   └── converter-template.php    # UI template
 ├── microservice/                  # YouTube conversion service
@@ -86,8 +86,6 @@ wsl python3 server.py
 ### Testing Files
 
 - `demo.html` - Standalone converter demo
-- `simple-test.html` - Basic FFmpeg test
-- `test-ffmpeg-012.html` - 0.12.x compatibility test
 
 ## 🐛 Troubleshooting
 

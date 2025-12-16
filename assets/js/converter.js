@@ -1,6 +1,7 @@
 /**
- * Video to MP3 Converter - Legacy Version for FFmpeg 0.11.6
- * Standalone demo version (non-WordPress)
+ * Video to MP3 Converter
+ * Uses FFmpeg 0.11.6 for maximum browser compatibility
+ * Supports local files (browser-based) and YouTube URLs (via microservice)
  */
 
 // State
