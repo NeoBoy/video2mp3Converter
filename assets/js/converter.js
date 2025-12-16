@@ -440,7 +440,7 @@ function isPlatformUrl(url) {
     const patterns = [
         /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\/.+/i,
         /^(https?:\/\/)?(www\.)?dailymotion\.com\/.+/i,
-        /^(https?:\/\/)?(www\.)?facebook\.com\/.+\/videos\/.+/i,
+        /^(https?:\/\/)?(www\.)?facebook\.com\/.+\/(videos|reel)\/.+/i,
         /^(https?:\/\/)?(www\.)?bilibili\.com\/video\/.+/i,
         /^(https?:\/\/)?(www\.)?vimeo\.com\/.+/i,
         /^(https?:\/\/)?(www\.)?tiktok\.com\/.+/i,
