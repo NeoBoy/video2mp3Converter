@@ -322,15 +322,24 @@ function handleDownloadClick() {
     const isExternal = elements.downloadBtn.dataset.external === 'true';
 
     if (url && filename) {
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
         if (isExternal) {
-            a.target = '_blank';
+            // For external URLs (microservice), create hidden link to trigger download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => document.body.removeChild(a), 100);
+        } else {
+            // For blob URLs (local conversion), trigger download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
     }
 }
 
