@@ -316,23 +316,43 @@ function processFile(file) {
 /**
  * Handle download click
  */
-function handleDownloadClick() {
+async function handleDownloadClick() {
     const url = elements.downloadBtn.dataset.url;
     const filename = elements.downloadBtn.dataset.filename;
     const isExternal = elements.downloadBtn.dataset.external === 'true';
 
     if (url && filename) {
         if (isExternal) {
-            // For external URLs (microservice), create hidden link to trigger download
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.style.display = 'none';
-            document.body.appendChild(a);
-            a.click();
-            setTimeout(() => document.body.removeChild(a), 100);
+            // For external URLs, fetch as blob to enable proper download with filename
+            try {
+                elements.downloadBtn.disabled = true;
+                elements.downloadBtn.textContent = 'Downloading...';
+                
+                const response = await fetch(url);
+                const blob = await response.blob();
+                const blobUrl = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = blobUrl;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                
+                // Clean up blob URL
+                setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+                
+                elements.downloadBtn.disabled = false;
+                elements.downloadBtn.textContent = 'Download MP3';
+            } catch (error) {
+                console.error('Download error:', error);
+                // Fallback: open in new tab
+                window.open(url, '_blank');
+                elements.downloadBtn.disabled = false;
+                elements.downloadBtn.textContent = 'Download MP3';
+            }
         } else {
-            // For blob URLs (local conversion), trigger download
+            // For blob URLs (local conversion), trigger download directly
             const a = document.createElement('a');
             a.href = url;
             a.download = filename;
