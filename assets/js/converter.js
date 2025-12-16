@@ -123,13 +123,13 @@ async function handleConvertClick() {
         return;
     }
 
-    // Check if it's a YouTube URL
-    if (url && isYouTubeUrl(url)) {
+    // Check if it's a supported video platform URL (YouTube, Facebook, Dailymotion, etc.)
+    if (url && isPlatformUrl(url)) {
         if (!microserviceUrl) {
-            showError('YouTube conversion is not configured. Please contact the site administrator.');
+            showError('Online video conversion is not configured. Please contact the site administrator.');
             return;
         }
-        await convertYouTubeVideo(url);
+        await convertYouTubeVideo(url); // This handles all platforms, not just YouTube
         return;
     }
 
@@ -428,7 +428,7 @@ function isValidUrl(string) {
  * Check if URL is a supported video platform URL
  * Supports: YouTube, Dailymotion, Facebook, Bilibili, Vimeo, TikTok, and 1000+ more via yt-dlp
  */
-function isYouTubeUrl(url) {
+function isPlatformUrl(url) {
     // Check if it's a valid URL format
     try {
         new URL(url);
