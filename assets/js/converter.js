@@ -9,7 +9,7 @@ let ffmpeg = null;
 let isFFmpegLoaded = false;
 let currentVideoBlob = null;
 let currentFileName = 'audio';
-let microserviceUrl = window.v2mp3Data?.microserviceUrl || '';
+let microserviceUrl = window.v2mp3Data?.microserviceUrl || 'https://video2mp3converter.onrender.com';
 
 // DOM Elements
 const elements = {
