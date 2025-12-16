@@ -62,12 +62,11 @@ class VideoToMP3Converter {
             // Load FFmpeg ES modules first
             add_action('wp_footer', function() {
                 ?>
-                <script type="module">
-                    import { FFmpeg } from 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/index.js';
-                    import { toBlobURL } from 'https://unpkg.com/@ffmpeg/util@0.12.1/dist/esm/index.js';
-                    
-                    // Make available globally for converter.js
-                    window.FFmpegModule = { FFmpeg, toBlobURL };
+                <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.11.6/dist/ffmpeg.min.js"></script>
+                <script>
+                    const { createFFmpeg, fetchFile } = FFmpeg;
+                    window.createFFmpeg = createFFmpeg;
+                    window.fetchFile = fetchFile;
                 </script>
                 <?php
             }, 5);
@@ -75,19 +74,13 @@ class VideoToMP3Converter {
             // Enqueue main JavaScript as module
             wp_enqueue_script(
                 'v2mp3-script',
-                V2MP3_PLUGIN_URL . 'assets/js/converter.js',
+                V2MP3_PLUGIN_URL . 'assets/js/converter-legacy.js',
                 array(),
                 V2MP3_VERSION,
                 true
             );
             
-            // Add module type attribute
-            add_filter('script_loader_tag', function($tag, $handle) {
-                if ('v2mp3-script' === $handle) {
-                    $tag = str_replace(' src', ' type="module" src', $tag);
-                }
-                return $tag;
-            }, 10, 2);
+            // No need for module type attribute with 0.11.6
             
             // Pass data to JavaScript
             wp_localize_script('v2mp3-script', 'v2mp3Data', array(

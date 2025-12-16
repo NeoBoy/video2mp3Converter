@@ -113,10 +113,12 @@ async function loadFFmpeg() {
 
         console.log('Loading FFmpeg core...');
         const baseURL = 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd';
+        const workerURL = 'https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/esm/worker.js';
         
         await ffmpeg.load({
             coreURL: await toBlobURL(`${baseURL}/ffmpeg-core.js`, 'text/javascript'),
             wasmURL: await toBlobURL(`${baseURL}/ffmpeg-core.wasm`, 'application/wasm'),
+            workerURL: await toBlobURL(workerURL, 'text/javascript'),
         });
 
         isFFmpegLoaded = true;
@@ -214,24 +216,26 @@ async function loadFFmpeg() {
         try {
             updateProgress('Preparing conversion...', 20);
 
-            // Write video file to ffmpeg filesystem (version 0.11.x API)
+            // File names
             const inputFileName = 'input.mp4';
             const outputFileName = 'output.mp3';
 
             updateProgress('Writing file to memory...', 30);
-            // fetchFile is globally available from the FFmpeg library
-            ffmpeg.FS('writeFile', inputFileName, await fetchFile(videoBlob));
+            
+            // Convert blob to Uint8Array for FFmpeg 0.12.x
+            const videoData = new Uint8Array(await videoBlob.arrayBuffer());
+            await ffmpeg.writeFile(inputFileName, videoData);
 
             updateProgress('Starting conversion...', 40);
 
-            // Execute ffmpeg command
+            // Execute ffmpeg command (new API uses exec instead of run)
             // -i input.mp4: input file
             // -vn: no video
             // -acodec libmp3lame: use MP3 codec
             // -q:a 2: high quality (0-9, lower is better)
             // -ar 44100: sample rate
             // -ac 2: stereo
-            await ffmpeg.run(
+            await ffmpeg.exec([
                 '-i', inputFileName,
                 '-vn',
                 '-acodec', 'libmp3lame',
@@ -239,12 +243,12 @@ async function loadFFmpeg() {
                 '-ac', '2',
                 '-q:a', '2',
                 outputFileName
-            );
+            ]);
 
             updateProgress('Reading converted file...', 96);
 
-            // Read the output file
-            const data = ffmpeg.FS('readFile', outputFileName);
+            // Read the output file (new API)
+            const data = await ffmpeg.readFile(outputFileName);
             
             updateProgress('Creating download...', 98);
             
@@ -258,8 +262,8 @@ async function loadFFmpeg() {
 
             // Clean up ffmpeg filesystem
             try {
-                ffmpeg.FS('unlink', inputFileName);
-                ffmpeg.FS('unlink', outputFileName);
+                await ffmpeg.deleteFile(inputFileName);
+                await ffmpeg.deleteFile(outputFileName);
             } catch (e) {
                 console.warn('Error cleaning up files:', e);
             }

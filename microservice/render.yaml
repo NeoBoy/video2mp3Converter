@@ -1,7 +1,7 @@
 services:
   - type: web
     name: youtube-to-mp3-service
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install
     startCommand: npm start
