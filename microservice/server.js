@@ -18,8 +18,33 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.use(cors());
-app.use(express.json());
+
+// Add raw body parser with better error handling
+app.use(express.json({ 
+    verify: (req, res, buf, encoding) => {
+        try {
+            // Store raw body for debugging
+            req.rawBody = buf.toString(encoding || 'utf8');
+        } catch (err) {
+            console.error('Error storing raw body:', err);
+        }
+    }
+}));
+
 app.use(express.urlencoded({ extended: true }));
+
+// Log incoming requests for debugging
+app.use((req, res, next) => {
+    if (req.method === 'POST') {
+        console.log(`${req.method} ${req.path}`);
+        console.log('Headers:', req.headers);
+        console.log('Body:', req.body);
+        if (req.rawBody && req.rawBody !== JSON.stringify(req.body)) {
+            console.log('Raw body:', req.rawBody);
+        }
+    }
+    next();
+});
 
 // Create temp directory if it doesn't exist
 const TEMP_DIR = path.join(__dirname, 'temp');
@@ -273,6 +298,16 @@ function isValidVideoUrl(url) {
  */
 app.use((error, req, res, next) => {
     console.error('Unhandled error:', error);
+    
+    // Handle JSON parse errors with helpful message
+    if (error instanceof SyntaxError && error.status === 400 && 'body' in error) {
+        return res.status(400).json({ 
+            error: 'Invalid JSON in request body',
+            details: 'Make sure Content-Type is application/json and body is valid JSON',
+            received: error.body ? error.body.substring(0, 100) : 'unknown'
+        });
+    }
+    
     res.status(500).json({ 
         error: 'Internal server error',
         message: error.message 

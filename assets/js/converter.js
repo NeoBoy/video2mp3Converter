@@ -466,12 +466,18 @@ async function convertYouTubeVideo(url) {
 
         // Get video info first
         updateProgress('Fetching video information...', 20);
+        
+        const requestBody = { url };
+        console.log('Sending request to microservice:', microserviceUrl);
+        console.log('Request body:', requestBody);
+        console.log('Stringified:', JSON.stringify(requestBody));
+        
         const infoResponse = await fetch(`${microserviceUrl}/api/info`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ url })
+            body: JSON.stringify(requestBody)
         });
 
         if (!infoResponse.ok) {
