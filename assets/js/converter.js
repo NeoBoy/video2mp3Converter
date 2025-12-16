@@ -495,10 +495,14 @@ async function convertYouTubeVideo(url) {
 
         if (!convertResponse.ok) {
             const error = await convertResponse.json();
-            throw new Error(error.error || 'Failed to convert video');
+            throw new Error(error.details || error.error || 'Failed to convert video');
         }
 
         const result = await convertResponse.json();
+        
+        if (!result.success) {
+            throw new Error('Conversion failed on server');
+        }
         
         updateProgress('Preparing download...', 90);
 

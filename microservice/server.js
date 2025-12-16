@@ -162,14 +162,30 @@ app.post('/api/convert', async (req, res) => {
     } catch (error) {
         console.error(`Error converting video (job ${jobId}):`, error);
         
-        // Clean up partial file if exists
+        // Clean up partial files if they exist
         try {
             await fs.unlink(outputPath);
+            await fs.unlink(metadataPath);
         } catch {}
 
+        // Provide more helpful error messages
+        let errorMessage = 'Failed to convert video';
+        let details = error.message;
+        
+        if (error.message.includes('HTTP Error 429') || error.message.includes('Too Many Requests')) {
+            errorMessage = 'Rate limited by video platform';
+            details = 'This video platform is blocking automated downloads. Try again later or use a different platform.';
+        } else if (error.message.includes('HTTP Error 403') || error.message.includes('Forbidden')) {
+            errorMessage = 'Access denied by video platform';
+            details = 'This video may require login or is geo-restricted. Try a public video from a different platform.';
+        } else if (error.message.includes('Private video') || error.message.includes('requires login')) {
+            errorMessage = 'Video requires authentication';
+            details = 'This video is private or requires login. Please use a public video.';
+        }
+
         res.status(500).json({ 
-            error: 'Failed to convert video',
-            details: error.message 
+            error: errorMessage,
+            details: details
         });
     }
 });
