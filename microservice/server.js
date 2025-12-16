@@ -25,17 +25,17 @@ app.use(express.urlencoded({ extended: true }));
 const TEMP_DIR = path.join(__dirname, 'temp');
 fs.mkdir(TEMP_DIR, { recursive: true }).catch(console.error);
 
-// Clean up old files periodically (every hour)
+// Clean up old files periodically (every 5 minutes)
 setInterval(async () => {
     try {
         const files = await fs.readdir(TEMP_DIR);
         const now = Date.now();
-        const oneHourAgo = now - (60 * 60 * 1000);
+        const fiveMinutesAgo = now - (5 * 60 * 1000);
 
         for (const file of files) {
             const filePath = path.join(TEMP_DIR, file);
             const stats = await fs.stat(filePath);
-            if (stats.mtimeMs < oneHourAgo) {
+            if (stats.mtimeMs < fiveMinutesAgo) {
                 await fs.unlink(filePath);
                 console.log(`Cleaned up old file: ${file}`);
             }
@@ -43,7 +43,7 @@ setInterval(async () => {
     } catch (error) {
         console.error('Error cleaning up files:', error);
     }
-}, 60 * 60 * 1000);
+}, 5 * 60 * 1000); // Run every 5 minutes
 
 /**
  * Health check endpoint
@@ -214,10 +214,10 @@ app.get('/api/download/:jobId', async (req, res) => {
         const fileStream = require('fs').createReadStream(filePath);
         fileStream.pipe(res);
 
-        // Don't delete immediately - let hourly cleanup handle it
+        // Don't delete immediately - let cleanup cycle handle it (files older than 5 minutes)
         // This prevents 404 errors from browser pre-flight requests and IDM
         fileStream.on('end', () => {
-            console.log(`Download completed: ${jobId} (will be cleaned up in hourly cycle)`);
+            console.log(`Download completed: ${jobId} (will be cleaned up in 5 min cleanup cycle)`);
         });
 
     } catch (error) {
